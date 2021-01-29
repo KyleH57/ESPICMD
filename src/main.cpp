@@ -118,7 +118,7 @@ void loop()
   // msgDataPtr->zCounts     = countZ;
   // msgDataPtr->sN          = 0;
   // msgDataPtr->CRC         = CRC32::calculate(msgDataPtr, msgDataPtr->messageLen-1 );
-
+//a
   //dereference and cast
   //Serial.write( (uint8_t *)msgDataPtr, sizeof(message) );
 
