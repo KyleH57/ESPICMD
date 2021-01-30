@@ -16,29 +16,79 @@ SPIClass *vspi = NULL;
 
 uint8_t rdBuffer[9];
 
+static const int MSG_BUFFER_SEPARATOR       = ',';             //Msg Separator char
+
+static const int MSG_BUFFER_SEQ_CNT_SIZE    = (1 * (8 + 1));   //32 bit values w/separator char
+static const int MSG_BUFFER_ENC_COUNTS_SIZE = (3 * (6 + 1));   //3 24 bit values w/separator after each value
+static const int MSG_BUFFER_CRC_SIZE        = (1 * (8 + 0));   //32 bit CRC - 8 charachters, last field so no separators
+
+static const int MSG_BUFFER_MAX_SIZE        = MSG_BUFFER_SEQ_CNT_SIZE    +
+                                              MSG_BUFFER_ENC_COUNTS_SIZE +
+                                              MSG_BUFFER_CRC_SIZE        ;
+
+uint8_t msgBuffer[MSG_BUFFER_MAX_SIZE];
+
+uint8_t binToHexTbl[] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46};
+
+int      i, j;
+int      msgIndex;
+int      tempValue;
+
+
+
 int countX = 0;
 int countY = 0;
 int countZ = 0;
 void spiRd(int addr, int numB, int csPin);
 void spiWr(int addr, int data, int csPin);
 
-int chk = 0;
+uint32_t chk = 0;
 String payload = "";
 String message = "";
+String test = "";
 
-// typedef struct message {
-//   int messageLen;
-//   int messageType;
-//   int xCounts;
-//   int yCounts;
-//   int zCounts;
-//   unsigned int sN;
-//   uint32_t CRC;
-// };
 
-// message  msgDataBuffer;
-// message *msgDataPtr = &msgDataBuffer;
 
+int formatValueToAsciiHexStr(int value, int index, boolean addDelimiter)
+{
+uint8_t *tempPtr;
+int      nibbleLO, nibbleHI;
+int      i, j;
+
+  i = index;
+  tempPtr = (uint8_t *)&value;
+
+  for (j = 0; j < sizeof(int); j++)
+  {
+    nibbleLO =  *tempPtr       & 0x0F;
+    nibbleHI = (*tempPtr >> 4) & 0x0F;
+
+    if (nibbleHI != 0x00) {
+       msgBuffer[i++] = binToHexTbl[(nibbleHI)];
+    }
+    else {
+       msgBuffer[i++] = 0x2A;   //TBD - TEST Asterisk
+    }
+
+    if (nibbleLO != 0x00) {
+       msgBuffer[i++] = binToHexTbl[(nibbleLO)];
+    }
+    else {
+       msgBuffer[i++] = 0x2A;   //TBD - TEST Asterisk
+    }
+
+    tempPtr++;  //Go to next byte
+  }
+
+  if (addDelimiter == true) {
+    msgBuffer[i++] = MSG_BUFFER_SEPARATOR;
+  }
+
+  Serial.println(msgBuffer + " - " + i);
+
+  return i;
+
+}   // End of formatAsciiHexStr()
 
 
 
@@ -74,8 +124,18 @@ void setup()
   spiWr(0x30, 0x07, csZ); //Reset all counters
 
   Serial.println("Setup done");
-}
 
+  //setup done
+  for (;;)
+  {
+    if (Serial.readStringUntil('\n') == "spin")
+    {
+      Serial.println("ENC");
+      break;
+    }
+    delay(800);
+  }
+}
 
 
 void loop()
@@ -100,27 +160,39 @@ void loop()
   countZ <<= 8;
   countZ >>= 8;
 
-  payload = String(countX) + "," + String(countY) + "," + String(countZ);
 
-  chk = CRC32::calculate(&payload,sizeof(payload));
+  msgIndex = 0;
+
+
+  countX  = 0x123ABC;    //TBD - TEST ONLY
+  
+  msgIndex = formatValueToAsciiHexStr(countX, msgIndex, true);
+
+
+
+//  payload = String(countX) + "," + String(countY) + "," + String(countZ);
+
+  chk = CRC32::calculate(msgBuffer, msgIndex);
+
 
   message = String(chk) + "," + payload;
 
-  Serial.flush();//wait for any existing data to be sent
-  delay(4);
-  Serial.println(message);
+  //message = payload + ", " + sizeof(payload) + ", " + String(chk, HEX);
+
+
+  test = "0,0,0";
+  chk = CRC32::calculate( (uint8_t *)&test, sizeof(test));
+
+  message = test + ", " + sizeof(test) + ", " + String(chk, HEX);
 
   
-  // msgDataPtr->messageLen  = sizeof(message);
-  // msgDataPtr->messageType = 1;
-  // msgDataPtr->xCounts     = countX;
-  // msgDataPtr->yCounts     = countY;
-  // msgDataPtr->zCounts     = countZ;
-  // msgDataPtr->sN          = 0;
-  // msgDataPtr->CRC         = CRC32::calculate(msgDataPtr, msgDataPtr->messageLen-1 );
-//a
-  //dereference and cast
-  //Serial.write( (uint8_t *)msgDataPtr, sizeof(message) );
+  //Serial.println(payload);
+  //Serial.println(sizeof(payload));
+  Serial.println(message);
+  delay(5);
+  Serial.flush();//wait for any existing data to be sent
+
+
 
 
 }
