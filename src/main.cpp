@@ -161,29 +161,31 @@ void loop()
   countZ >>= 8;
 
 
-  msgIndex = 0;
 
 
   countX  = 0x123ABC;    //TBD - TEST ONLY
   
+  msgIndex = 0;
   msgIndex = formatValueToAsciiHexStr(countX, msgIndex, true);
+  msgIndex = formatValueToAsciiHexStr(countY, msgIndex, true);
+  msgIndex = formatValueToAsciiHexStr(countZ, msgIndex, true);
 
+  chk = CRC32::calculate(msgBuffer, msgIndex);
+
+  msgIndex = formatValueToAsciiHexStr(chk, msgIndex, false);
 
 
 //  payload = String(countX) + "," + String(countY) + "," + String(countZ);
 
-  chk = CRC32::calculate(msgBuffer, msgIndex);
-
-
-  message = String(chk) + "," + payload;
+//  message = String(chk) + "," + payload;
 
   //message = payload + ", " + sizeof(payload) + ", " + String(chk, HEX);
 
 
-  test = "0,0,0";
-  chk = CRC32::calculate( (uint8_t *)&test, sizeof(test));
+//  test = "0,0,0";
+//  chk = CRC32::calculate( (uint8_t *)&test, sizeof(test));
 
-  message = test + ", " + sizeof(test) + ", " + String(chk, HEX);
+//  message = test + ", " + sizeof(test) + ", " + String(chk, HEX);
 
   
   //Serial.println(payload);
