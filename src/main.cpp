@@ -98,13 +98,18 @@ int i;
 int formatValueToAsciiHexStr(int value, int startIndex, boolean addDelimiter)
 {
 uint8_t *tempPtr;
+int      tempValue;
 int      nibbleLO, nibbleHI;
 int      i, j;
 boolean  nonZeroFound = false;
 
-  i       = startIndex;
-  tempPtr = (uint8_t *)&value;
-  tempPtr = tempPtr + 3;
+  i         = startIndex;
+
+  tempValue =     value << 8;     //Sign extend since encoder values are only 24 bit
+  tempValue = tempValue >> 8;
+
+  tempPtr   = (uint8_t *)&tempValue;
+  tempPtr   = tempPtr + 3;
 
   /*****************************************************************************
   * Convert each nibble to its Ascii equivalent.  ESP32 is Little Endian so 
