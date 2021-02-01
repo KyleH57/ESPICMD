@@ -17,55 +17,58 @@ SPIClass *vspi = NULL;
 uint8_t rdBuffer[9];
 
 
-static const int MSG_BUFFER_HEADER          = 0x7FBEDEAD;      //Msg Header
+static const int MSG_TYPE_ASCII_HEX_STR     = 0x00;            //CSV List of parameters, Leading '0's removed, 
+                                                               //  data formatted as ASCII HEX w/out 0x prefix
+static const int MSG_TYPE_BINARY_V1         = 0x01;            //FUTURE:  Msg Struct sent as binary data
+
+static const int msgType = MSG_TYPE_ASCII_HEX_STR;
+
 static const int MSG_BUFFER_SEPARATOR       = ',';             //Msg Separator char  0x2C
 
-static const int MSG_BUFFER_HEADER_SIZE     = (1 * (8 + 1));   //32 bit value w/separator char
+static const int MSG_BUFFER_MSG_LENGTH_SIZE = (1 * (4 + 1));   //16 bit value w/separator char
+
+static const int MSG_BUFFER_MSG_TYPE_SIZE   = (1 * (8 + 1));   //32 bit value w/separator char
 static const int MSG_BUFFER_SEQ_CNT_SIZE    = (1 * (8 + 1));   //32 bit value w/separator char
 static const int MSG_BUFFER_ENC_COUNTS_SIZE = (3 * (6 + 1));   //3 24 bit values w/separator after each value
 static const int MSG_BUFFER_CRC_SIZE        = (1 * (8 + 0));   //32 bit CRC - 8 charachters, last field so no separators
 
-static const int MSG_BUFFER_MAX_SIZE        = MSG_BUFFER_HEADER_SIZE     +
+static const int MSG_BUFFER_MAX_SIZE        = MSG_BUFFER_MSG_TYPE_SIZE   +
                                               MSG_BUFFER_SEQ_CNT_SIZE    +
                                               MSG_BUFFER_ENC_COUNTS_SIZE +
                                               MSG_BUFFER_CRC_SIZE        +
                                               8                          ;  //Extra Space
 
-uint8_t msgBuffer[MSG_BUFFER_MAX_SIZE];
+uint8_t msgLengthBuffer[MSG_BUFFER_MSG_LENGTH_SIZE];
+uint8_t msgBuffer      [MSG_BUFFER_MAX_SIZE];
 int     msgSequenceCount = 0;
+int     msgIndex;
+int     payloadLength;        //CRC Will be calculated over these bytes
+
 
 uint8_t binToHexTbl[] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46};
 
-int      i, j;
-int      msgIndex;
-int      tempValue;
+static const boolean REMOVE_LEADING_ZEROES     = true;
+static const boolean LEAVE_LEADING_ZEROES      = false;
+
+static const boolean ADD_DELIMITER    = true;
+static const boolean NO_DELIMITER     = true;
 
 
 
 int countX = 0;
 int countY = 0;
 int countZ = 0;
+
 void spiRd(int addr, int numB, int csPin);
 void spiWr(int addr, int data, int csPin);
 
 uint32_t chk = 0;
-String payload = "";
-String message = "";
-String test = "";
 
 
 /*******************************************************************************
 *
 *  dbgPrintMsgBuffer()
 *
-66 67 
-51 65 
-49 50 
-42 42
- 44
-
-B C 3 A 1 2 * *
-
 *******************************************************************************/
 void dbgPrintMsgBuffer(int startIndex, int numChars) 
 {
@@ -95,7 +98,7 @@ int i;
     Serial.println(nibbleLO);
 *
 *******************************************************************************/
-int formatValueToAsciiHexStr(int value, int startIndex, boolean addDelimiter)
+int formatValueToAsciiHexStr(uint8_t *bufferPtr, int value, int startIndex, boolean removeLeadingZeroes, boolean addDelimiter)
 {
 uint8_t *tempPtr;
 int      tempValue;
@@ -104,38 +107,45 @@ int      i, j;
 boolean  nonZeroFound = false;
 
   i         = startIndex;
+  tempValue = value;
 
-  tempValue =     value << 8;     //Sign extend since encoder values are only 24 bit
-  tempValue = tempValue >> 8;
-
-  tempPtr   = (uint8_t *)&tempValue;
-  tempPtr   = tempPtr + 3;
 
   /*****************************************************************************
   * Convert each nibble to its Ascii equivalent.  ESP32 is Little Endian so 
   * process nibbles from the right
   *****************************************************************************/
+  tempPtr   = (uint8_t *)&tempValue;
+  tempPtr   = tempPtr + 3;
+
   for (j = 0; j < sizeof(int); j++)
   {
     nibbleLO =  *tempPtr       & 0x0F;
     nibbleHI = (*tempPtr >> 4) & 0x0F;
 
-    if (nibbleHI != 0x00) {
-       nonZeroFound = true;
-       msgBuffer[i++] = binToHexTbl[(nibbleHI)];
-    } else {
-      if (nonZeroFound == true) {
-        msgBuffer[i++] = binToHexTbl[(nibbleHI)];
-      }
+    if (removeLeadingZeroes == false) {
+       *bufferPtr++ = binToHexTbl[(nibbleHI)];
+       *bufferPtr++ = binToHexTbl[(nibbleLO)];        
     }
-
-    if (nibbleLO != 0x00) {
-       nonZeroFound = true;
-       msgBuffer[i++] = binToHexTbl[(nibbleLO)];
-    } else {
-      if (nonZeroFound == true) {
-        msgBuffer[i++] = binToHexTbl[(nibbleLO)];
+    else {
+      // Don't Store any leading zeroes...
+       if (nibbleHI != 0x00) {
+          nonZeroFound = true;
+          *bufferPtr++ = binToHexTbl[(nibbleHI)];
+      } else {
+          if (nonZeroFound == true) {
+             *bufferPtr++ = binToHexTbl[(nibbleHI)];
+          }
       }
+
+      if (nibbleLO != 0x00) {
+         nonZeroFound = true;
+         *bufferPtr++ = binToHexTbl[(nibbleLO)];
+      } else {
+         if (nonZeroFound == true) {
+            *bufferPtr++ = binToHexTbl[(nibbleLO)];
+         }
+      }
+
     }
 
     tempPtr--;  //Go to next byte
@@ -227,7 +237,6 @@ void loop()
 {
   
   // //use the SPI buses
-
   
   spiRd(0x08, 6, csXY);
 
@@ -249,22 +258,27 @@ void loop()
   * Format Msg To Send
   ****************************************************************************/
   msgIndex = 0;
-  //msgIndex = formatValueToAsciiHexStr(MSG_BUFFER_HEADER, msgIndex, true);
-  msgIndex = formatValueToAsciiHexStr(msgSequenceCount,  msgIndex, true);
-  msgIndex = formatValueToAsciiHexStr(countX,            msgIndex, true);
-  msgIndex = formatValueToAsciiHexStr(countY,            msgIndex, true);
-  msgIndex = formatValueToAsciiHexStr(countZ,            msgIndex, true);
+  msgIndex = formatValueToAsciiHexStr(msgBuffer, msgType,           msgIndex, REMOVE_LEADING_ZEROES, ADD_DELIMITER);
+  msgIndex = formatValueToAsciiHexStr(msgBuffer, msgSequenceCount,  msgIndex, REMOVE_LEADING_ZEROES, ADD_DELIMITER);
+  msgIndex = formatValueToAsciiHexStr(msgBuffer, countX,            msgIndex, REMOVE_LEADING_ZEROES, ADD_DELIMITER);
+  msgIndex = formatValueToAsciiHexStr(msgBuffer, countY,            msgIndex, REMOVE_LEADING_ZEROES, ADD_DELIMITER);
+  msgIndex = formatValueToAsciiHexStr(msgBuffer, countZ,            msgIndex, REMOVE_LEADING_ZEROES, ADD_DELIMITER);
 
-  chk = CRC32::calculate(msgBuffer, msgIndex);
+  payloadLength = msgIndex;
 
-  msgIndex = formatValueToAsciiHexStr(chk, msgIndex, false);
+  chk = CRC32::calculate(msgBuffer, payloadLength);
+
+  msgIndex = formatValueToAsciiHexStr(msgBuffer, chk,               msgIndex, REMOVE_LEADING_ZEROES, NO_DELIMITER);
+
+
+  msgIndex = formatValueToAsciiHexStr(msgLengthBuffer, payloadLength, 0, REMOVE_LEADING_ZEROES, ADD_DELIMITER);
+
 
   /****************************************************************************
   * Send Message (Currently as a String)
   ****************************************************************************/
-  Serial.println( (char *)msgBuffer );
-//  Serial.print  (" : MsgSize = ");            //Debug
-//  Serial.println( msgIndex );                 //Debug
+  Serial.print  ( (char *)msgLengthBuffer);
+  Serial.println( (char *)msgBuffer      );
 
   delay(5);
   
