@@ -14,7 +14,8 @@ static const int spiClk = 1000000; // 1 MHz
 //uninitalised pointers to SPI objects
 SPIClass *vspi = NULL;
 
-uint8_t rdBuffer[9];
+static const int RDBUFFER_SIZE = 16;
+uint8_t rdBuffer[RDBUFFER_SIZE];
 
 
 static const int MSG_TYPE_BINARY_V1         = 0x01;            //FUTURE:  Msg Struct sent as binary data
@@ -41,7 +42,7 @@ static const int MSG_BUFFER_MAX_SIZE        = MSG_BUFFER_MSG_TYPE_SIZE   +
 uint8_t   msgLengthBuffer[MSG_BUFFER_MSG_LENGTH_SIZE];
 uint8_t   msgBuffer      [MSG_BUFFER_MAX_SIZE];
 uint32_t  msgSequenceCount = 0;
-uint32_t  msgCRC              = 0;
+uint32_t  msgCRC           = 0;
 int       msgIndex;
 int       payloadLength;        //CRC Will be calculated over these bytes
 
@@ -55,10 +56,10 @@ static const boolean ADD_DELIMITER  = true;
 static const boolean NO_DELIMITER   = false;
 
 
-
 int countX = 0;
 int countY = 0;
 int countZ = 0;
+
 
 void spiRd(int addr, int numB, int csPin);
 void spiWr(int addr, int data, int csPin);
@@ -170,6 +171,7 @@ boolean  nonZeroFound = false;
 }   // End of formatAsciiHexStr()
 
 
+
 /*******************************************************************************
 *
 *  setup()
@@ -177,21 +179,31 @@ boolean  nonZeroFound = false;
 *******************************************************************************/
 void setup()
 {
+int i;
+
   //2 mil
   Serial.begin(115200);
+
+  for (i = 0; i < RDBUFFER_SIZE; i++) {
+    rdBuffer[i] = 0x00;
+  }
+
   //initialise two instances of the SPIClass attached to VSPI and HSPI respectively
   vspi = new SPIClass(VSPI);
 
   //vspi->begin(VSPI_SCLK, VSPI_MISO, VSPI_MOSI, csXY); //SCLK, MISO, MOSI, SS
+
   vspi->begin(VSPI_SCLK, VSPI_MISO, VSPI_MOSI); //SCLK, MISO, MOSI, SS
   vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
+  
   //set up slave select pins as outputs as the Arduino API
   //doesn't handle automatically pulling SS low
-  pinMode(csXY, OUTPUT); //VSPI SS
-  pinMode(csZ, OUTPUT);  //VSPI SS
+  pinMode(csXY, OUTPUT);  //VSPI SS
+  pinMode(csZ,  OUTPUT);  //VSPI SS
 
   //ICMD setup XY
-  spiWr(0x00, 0x01, csXY); //x2 24 bit counters
+  spiWr(0x00, 0x01, csXY); //x2 24 bit counters, CNTR1 will be in bytes 0..2
+                           //                    CNTR0 will be in bytes 3..5
   spiWr(0x01, 0x81, csXY); //TTL Inputs, SPI IFC Priority
   spiWr(0x02, 0x00, csXY);
   spiWr(0x03, 0x00, csXY);
@@ -199,12 +211,30 @@ void setup()
   spiWr(0x30, 0x07, csXY); //Reset all counters
 
   //ICMD setup Z
-  spiWr(0x00, 0x01, csZ); //x2 24 bit counters
-  spiWr(0x01, 0x81, csZ); //TTL Inputs, SPI IFC Priority
-  spiWr(0x02, 0x00, csZ);
-  spiWr(0x03, 0x00, csZ);
-  spiWr(0x04, 0x04, csZ); //Disable BiSS CH0
-  spiWr(0x30, 0x07, csZ); //Reset all counters
+  spiWr(0x00, 0x01, csZ ); //x2 24 bit counters, CNTR1 will be in bytes 0..2
+                           //                    CNTR0 will be in bytes 3..5
+  spiWr(0x01, 0x81, csZ ); //TTL Inputs, SPI IFC Priority
+  spiWr(0x02, 0x00, csZ );
+  spiWr(0x03, 0x00, csZ );
+  spiWr(0x04, 0x04, csZ ); //Disable BiSS CH0
+  spiWr(0x30, 0x07, csZ ); //Reset all counters
+
+  // Read back Manuf ID & Device ID to verify we can talk to each decoder
+  Serial.print  ("XY - ");
+  spiRd(0x7E, 2, csXY);
+  Serial.print  ( (char)rdBuffer[0] );
+  Serial.print  ( (char)rdBuffer[1] );
+  spiRd(0x78, 2, csXY);
+  Serial.print  ( (char)rdBuffer[0] );
+  Serial.println( (char)rdBuffer[1] );
+
+  Serial.print  ("Z  - ");
+  spiRd(0x7E, 2, csZ);
+  Serial.print  ( (char)rdBuffer[0] );
+  Serial.print  ( (char)rdBuffer[1] );
+  spiRd(0x78, 2, csZ);
+  Serial.print  ( (char)rdBuffer[0] );
+  Serial.println( (char)rdBuffer[1] );
 
   Serial.println("Setup done");
 
@@ -243,10 +273,12 @@ void loop()
   countY <<= 8;
   countY >>= 8;
 
-  spiRd(0x08, 3, csZ);
+  spiRd(0x08, 6, csZ);
   countZ = (rdBuffer[3] << 16) | (rdBuffer[4] << 8) | (rdBuffer[5]);
   countZ <<= 8;
   countZ >>= 8;
+
+
 
   /****************************************************************************
   * Format Msg To Send
@@ -284,6 +316,12 @@ void loop()
 
 
 
+/*******************************************************************************
+*
+*  spiRd()
+*  spiWr()
+*
+*******************************************************************************/
 void spiRd(int addr, int numB, int csPin)
 {
 
