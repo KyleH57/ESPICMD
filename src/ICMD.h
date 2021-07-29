@@ -15,27 +15,29 @@ public:
 
     
     
-    // ICMD(SPIClass *spi, int csGPIO, int config);
+    ICMD(int csGPIO, int config);
 
-    // uint32_t getCounts(SPIClass *spi);
+    void spiSetup(SPIClass *spi);
 
-    // int systemCheck(SPIClass *spi);
+    uint32_t getCounts(SPIClass *spi);
+
+    int systemCheck(SPIClass *spi);
 
 private:
-    // int CS;
-    // //static const int RDBUFFER_SIZE = 16;
-    // //uint8_t dataBuffer[RDBUFFER_SIZE];
-    // static const int RDBUFFER_SIZE = 16;
-    // uint8_t dataBuffer[16];
+    int CS;
+    int icConfig;
+    static const int RDBUFFER_SIZE = 16;
+    uint8_t dataBuffer[RDBUFFER_SIZE];
 
 
-    // void mdSetupTTL(SPIClass *spi, int csGPIO);
 
-    // void mdSetup422(SPIClass *spi, int csGPIO);
+    void mdSetupTTL(SPIClass *spi, int csGPIO);
 
-    // void spiRd(SPIClass *spi, int addr, int numB, int csPin);
+    void mdSetup422(SPIClass *spi, int csGPIO);
 
-    // void spiWr(SPIClass *spi, int addr, int data, int csPin);
+    void spiRd(SPIClass *spi, int addr, int numB, int csPin);
+
+    void spiWr(SPIClass *spi, int addr, int data, int csPin);
 };
 
 #endif

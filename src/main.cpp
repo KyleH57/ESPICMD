@@ -59,10 +59,10 @@ static const boolean LEAVE_LEADING_ZEROES = false;
 static const boolean ADD_DELIMITER = true;
 static const boolean NO_DELIMITER = false;
 
-// //setup ICMD objects
-// ICMD mdX(vspi, csX, MD_CONFIG_TTL);
-// ICMD mdY(vspi, csY, MD_CONFIG_TTL);
-// ICMD mdZ(vspi, csZ, MD_CONFIG_RS422);
+//setup ICMD objects
+ICMD mdX(csX, MD_CONFIG_TTL);
+ICMD mdY(csY, MD_CONFIG_TTL);
+ICMD mdZ(csZ, 1);
 
 int countX = 0;
 int countY = 0;
@@ -210,16 +210,20 @@ void setup()
   vspi->begin(VSPI_SCLK, VSPI_MISO, VSPI_MOSI); //SCLK, MISO, MOSI, SS
   vspi->beginTransaction(SPISettings(spiClk, MSBFIRST, SPI_MODE0));
 
+//do spi stuff now that SPI is running
+  mdX.spiSetup(vspi);
+  mdY.spiSetup(vspi);
+  mdZ.spiSetup(vspi);
   //set up slave select pins as outputs as the Arduino API
   //doesn't handle automatically pulling SS low
   pinMode(csX, OUTPUT); //VSPI SS
   pinMode(csY, OUTPUT); //VSPI SS
   pinMode(csZ, OUTPUT); //VSPI SS
 
-  // //print handshake stat
-  // Serial.println(mdX.systemCheck(vspi));
-  // Serial.println(mdY.systemCheck(vspi));
-  // Serial.println(mdZ.systemCheck(vspi));
+  //print handshake stat
+  Serial.println(mdX.systemCheck(vspi));
+  Serial.println(mdY.systemCheck(vspi));
+  Serial.println(mdZ.systemCheck(vspi));
 
 
   Serial.println("Setup done");
