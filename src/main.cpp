@@ -2,7 +2,7 @@
 #include <CRC32.h>
 #include <SPI.h>
 
-#include "ICMD.hpp"
+#include "ICMD.h"
 
 //black PCB
 #define VSPI_MISO 15
@@ -59,9 +59,10 @@ static const boolean LEAVE_LEADING_ZEROES = false;
 static const boolean ADD_DELIMITER = true;
 static const boolean NO_DELIMITER = false;
 
-ICMD mdX(vspi, csX, MD_CONFIG_TTL);
-ICMD mdY(vspi, csY, MD_CONFIG_TTL);
-ICMD mdZ(vspi, csZ, MD_CONFIG_RS422);
+// //setup ICMD objects
+// ICMD mdX(vspi, csX, MD_CONFIG_TTL);
+// ICMD mdY(vspi, csY, MD_CONFIG_TTL);
+// ICMD mdZ(vspi, csZ, MD_CONFIG_RS422);
 
 int countX = 0;
 int countY = 0;
@@ -215,16 +216,11 @@ void setup()
   pinMode(csY, OUTPUT); //VSPI SS
   pinMode(csZ, OUTPUT); //VSPI SS
 
-  //setup ICMD objects
+  // //print handshake stat
+  // Serial.println(mdX.systemCheck(vspi));
+  // Serial.println(mdY.systemCheck(vspi));
+  // Serial.println(mdZ.systemCheck(vspi));
 
-  if (mdX.systemCheck() || mdY.systemCheck() || mdZ.systemCheck())
-  {
-    for (;;)
-    {
-      //something broke
-      //do nothing and dont sent init string
-    }
-  }
 
   Serial.println("Setup done");
 
@@ -248,9 +244,9 @@ void setup()
 void loop()
 {
 
-  countX = mdX.getCounts();
-  countY = mdY.getCounts();
-  countZ = mdZ.getCounts();
+  // countX = mdX.getCounts(vspi);
+  // countY = mdY.getCounts(vspi);
+  // countZ = mdZ.getCounts(vspi);
 
   /****************************************************************************
   * Format Msg To Send
@@ -291,28 +287,28 @@ void loop()
 *  spiWr()
 *
 *******************************************************************************/
-void spiRd(int addr, int numB, int csPin)
-{
+// void spiRd(int addr, int numB, int csPin)
+// {
 
-  digitalWrite(csPin, LOW); //pull SS slow to prep other end for transfer
+//   digitalWrite(csPin, LOW); //pull SS slow to prep other end for transfer
 
-  vspi->transfer(0x80 | addr);
+//   vspi->transfer(0x80 | addr);
 
-  for (int i = 0; i < numB; i++)
-  {
-    rdBuffer[i] = vspi->transfer(0x00);
-  }
+//   for (int i = 0; i < numB; i++)
+//   {
+//     rdBuffer[i] = vspi->transfer(0x00);
+//   }
 
-  digitalWrite(csPin, HIGH);
-}
+//   digitalWrite(csPin, HIGH);
+// }
 
-void spiWr(int addr, int data, int csPin)
-{
-  digitalWrite(csPin, LOW);
+// void spiWr(int addr, int data, int csPin)
+// {
+//   digitalWrite(csPin, LOW);
 
-  vspi->transfer(addr);
+//   vspi->transfer(addr);
 
-  vspi->transfer(data);
+//   vspi->transfer(data);
 
-  digitalWrite(csPin, HIGH);
-}
+//   digitalWrite(csPin, HIGH);
+// }
