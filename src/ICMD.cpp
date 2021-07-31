@@ -25,7 +25,7 @@ void ICMD::spiSetup(SPIClass *spi)
     //configure the IC using SPI writes
     if (icConfig == 0)
     {
-        //mdSetup422(spi, CS);
+        mdSetup422(spi, CS);
     }
     else if(icConfig == 1)
     {

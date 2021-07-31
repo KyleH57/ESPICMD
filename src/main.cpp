@@ -10,7 +10,7 @@
 #define VSPI_SCLK 4
 #define csX 16 //X
 #define csY 17 //Y
-#define csZ 36 //Z
+#define csZ 32 //Z
 
 #define MD_CONFIG_RS422 0
 #define MD_CONFIG_TTL 1
@@ -62,7 +62,7 @@ static const boolean NO_DELIMITER = false;
 //setup ICMD objects
 ICMD mdX(csX, MD_CONFIG_TTL);
 ICMD mdY(csY, MD_CONFIG_TTL);
-ICMD mdZ(csZ, 1);
+ICMD mdZ(csZ, MD_CONFIG_RS422);
 
 int countX = 0;
 int countY = 0;
@@ -191,6 +191,11 @@ int formatValueToAsciiHexStr(uint8_t *bufferPtr, int value, int startIndex, bool
 *******************************************************************************/
 void setup()
 {
+  //init all CS pins to high
+  digitalWrite(csX, HIGH);
+  digitalWrite(csY, HIGH);
+  digitalWrite(csZ, HIGH);
+
   int i;
 
   //2 mil
@@ -201,6 +206,11 @@ void setup()
   {
     rdBuffer[i] = 0x00;
   }
+    //set up slave select pins as outputs as the Arduino API
+  //doesn't handle automatically pulling SS low
+  pinMode(csX, OUTPUT); //VSPI SS
+  pinMode(csY, OUTPUT); //VSPI SS
+  pinMode(csZ, OUTPUT); //VSPI SS
 
   //initialise two instances of the SPIClass attached to VSPI and HSPI respectively
   vspi = new SPIClass(VSPI);
@@ -214,11 +224,7 @@ void setup()
   mdX.spiSetup(vspi);
   mdY.spiSetup(vspi);
   mdZ.spiSetup(vspi);
-  //set up slave select pins as outputs as the Arduino API
-  //doesn't handle automatically pulling SS low
-  pinMode(csX, OUTPUT); //VSPI SS
-  pinMode(csY, OUTPUT); //VSPI SS
-  pinMode(csZ, OUTPUT); //VSPI SS
+
 
   //print handshake stat
   Serial.println(mdX.systemCheck(vspi));
