@@ -60,8 +60,8 @@ static const boolean ADD_DELIMITER = true;
 static const boolean NO_DELIMITER = false;
 
 //setup ICMD objects
-ICMD mdX(csX, MD_CONFIG_TTL);
-ICMD mdY(csY, MD_CONFIG_TTL);
+ICMD mdX(csX, MD_CONFIG_RS422);
+ICMD mdY(csY, MD_CONFIG_RS422);
 ICMD mdZ(csZ, MD_CONFIG_RS422);
 
 int countX = 0;
@@ -235,15 +235,15 @@ void setup()
   Serial.println("Setup done");
 
   //setup done
-  for (;;)
-  {
-    if (Serial.readStringUntil('\n') == "spin")
-    {
-      Serial.println("ENC");
-      break;
-    }
-    delay(800);
-  }
+  // for (;;)
+  // {
+  //   if (Serial.readStringUntil('\n') == "spin")
+  //   {
+  //     Serial.println("ENC");
+  //     break;
+  //   }
+  //   delay(800);
+  // }
 }
 
 /*******************************************************************************
@@ -254,9 +254,9 @@ void setup()
 void loop()
 {
 
-  // countX = mdX.getCounts(vspi);
-  // countY = mdY.getCounts(vspi);
-  // countZ = mdZ.getCounts(vspi);
+  countX = mdX.getCounts(vspi);
+  countY = mdY.getCounts(vspi);
+  countZ = mdZ.getCounts(vspi);
 
   /****************************************************************************
   * Format Msg To Send
@@ -280,9 +280,11 @@ void loop()
   /****************************************************************************
   * Send Message (Payload Length first w/Delimiter + remainder of message)
   ****************************************************************************/
-  Serial.print((char *)msgLengthBuffer);
-  Serial.println((char *)msgBuffer);
-
+  //Serial.print((char *)msgLengthBuffer);
+  //Serial.println((char *)msgBuffer);
+  Serial.println(countX);
+  Serial.println(countY);
+  Serial.println(countZ);
   msgSequenceCount++;
 
   delay(5);

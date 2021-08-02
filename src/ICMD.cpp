@@ -41,7 +41,7 @@ uint32_t ICMD::getCounts(SPIClass *spi)
     uint32_t counts = (dataBuffer[0] << 16) | (dataBuffer[1] << 8) | (dataBuffer[2]);
     //sign extension
     counts <<= 8;
-    counts >> 8;
+    counts >>= 8;
 
     return counts;
 }
@@ -80,7 +80,7 @@ void ICMD::mdSetup422(SPIClass *spi, int csGPIO)
     spiWr(spi, 0x00, 0x00, csGPIO); //single 24 bit, can use 0x02 for single 48 bit counter.
     spiWr(spi, 0x01, 0x01, csGPIO); //SPI IFC Priority
     spiWr(spi, 0x02, 0x00, csGPIO);
-    spiWr(spi, 0x03, 0x00, csGPIO);
+    spiWr(spi, 0x03, 0x00, csGPIO); 
     spiWr(spi, 0x04, 0x04, csGPIO); //Disable BiSS CH0
     spiWr(spi, 0x30, 0x07, csGPIO); //Reset all counters
 }
