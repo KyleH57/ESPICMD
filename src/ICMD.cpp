@@ -32,13 +32,13 @@ void ICMD::spiSetup(SPIClass *spi)
         mdSetupTTL(spi, CS);
     }
 }
-uint32_t ICMD::getCounts(SPIClass *spi)
+int32_t ICMD::getCounts(SPIClass *spi)
 {
     const int readBytes = 3;
     spiRd(spi, 0x08, readBytes, CS);
 
     //set counts
-    uint32_t counts = (dataBuffer[0] << 16) | (dataBuffer[1] << 8) | (dataBuffer[2]);
+    int32_t counts = (dataBuffer[0] << 16) | (dataBuffer[1] << 8) | (dataBuffer[2]);
     //sign extension
     counts <<= 8;
     counts >>= 8;

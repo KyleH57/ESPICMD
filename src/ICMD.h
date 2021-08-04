@@ -19,7 +19,7 @@ public:
 
     void spiSetup(SPIClass *spi);
 
-    uint32_t getCounts(SPIClass *spi);
+    int32_t getCounts(SPIClass *spi);
 
     int systemCheck(SPIClass *spi);
 
