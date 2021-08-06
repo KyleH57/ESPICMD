@@ -235,15 +235,17 @@ void setup()
   Serial.println("Setup done");
 
   //setup done
-  // for (;;)
-  // {
-  //   if (Serial.readStringUntil('\n') == "spin")
-  //   {
-  //     Serial.println("ENC");
-  //     break;
-  //   }
-  //   delay(800);
-  // }
+
+  //waiting for linux host init
+  for (;;)
+  {
+    if (Serial.readStringUntil('\n') == "spin")
+    {
+      Serial.println("ENC");
+      break;
+    }
+    delay(800);
+  }
 }
 
 /*******************************************************************************
